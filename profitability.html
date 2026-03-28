@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profitability Analysis | SG Property Compare</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --blue: #2563eb; --blue-light: #dbeafe;
+  --orange: #ea580c; --orange-light: #ffedd5;
+  --green: #16a34a; --green-light: #dcfce7;
+  --red: #dc2626; --red-light: #fee2e2;
+  --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+  --gray-300: #d1d5db; --gray-500: #6b7280; --gray-700: #374151; --gray-900: #111827;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--gray-50); color: var(--gray-900); line-height:1.5; }
+
+.header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color:#fff; padding:24px 0; box-shadow:0 4px 12px rgba(0,0,0,.15); }
+.header-inner { max-width:1400px; margin:0 auto; padding:0 24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+.header h1 { font-size:22px; font-weight:700; }
+.header h1 span { color:#93c5fd; font-weight:400; }
+.nav-links { display:flex; gap:16px; }
+.nav-links a { color:#93c5fd; text-decoration:none; font-size:14px; font-weight:500; padding:6px 12px; border-radius:6px; transition:all .2s; }
+.nav-links a:hover, .nav-links a.active { color:#fff; background:rgba(255,255,255,.15); }
+
+.container { max-width:1400px; margin:0 auto; padding:20px 24px 60px; }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.grid-4 { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px; }
+@media(max-width:900px) { .grid-2,.grid-4 { grid-template-columns:1fr; } }
+
+.card { background:#fff; border-radius:var(--radius); box-shadow:var(--shadow); padding:20px; transition:box-shadow .2s; }
+.card:hover { box-shadow:var(--shadow-lg); }
+.card-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--gray-500); margin-bottom:8px; }
+
+.stat-card { text-align:center; padding:20px 16px; }
+.stat-value { font-size:28px; font-weight:700; margin:4px 0; }
+.stat-sub { font-size:12px; color:var(--gray-500); }
+
+.section-title { font-size:18px; font-weight:700; margin:32px 0 16px; display:flex; align-items:center; gap:8px; }
+.section-title::before { content:''; display:inline-block; width:4px; height:22px; background:var(--blue); border-radius:2px; }
+
+/* Filters */
+.filters { display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin:20px 0; }
+.filter-group { display:flex; flex-direction:column; gap:4px; }
+.filter-label { font-size:11px; font-weight:600; text-transform:uppercase; color:var(--gray-500); }
+select, input[type="text"] { padding:8px 12px; border:1px solid var(--gray-200); border-radius:8px; font-size:14px; background:#fff; color:var(--gray-900); min-width:140px; }
+select:focus, input:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-light); }
+
+/* Tables */
+.table-wrap { overflow-x:auto; margin-top:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+thead th { text-align:left; padding:10px 12px; background:var(--gray-100); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--gray-500); border-bottom:2px solid var(--gray-200); cursor:pointer; user-select:none; white-space:nowrap; }
+thead th:hover { color:var(--gray-900); }
+thead th.sorted-asc::after { content:" ▲"; }
+thead th.sorted-desc::after { content:" ▼"; }
+tbody td { padding:10px 12px; border-bottom:1px solid var(--gray-100); white-space:nowrap; }
+tbody tr:hover { background:var(--gray-50); }
+
+.badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:11px; font-weight:600; }
+.badge-cluster { background:var(--blue-light); color:var(--blue); }
+.badge-condo { background:var(--orange-light); color:var(--orange); }
+.profit-pos { color:var(--green); font-weight:600; }
+.profit-neg { color:var(--red); font-weight:600; }
+
+.pagination { display:flex; justify-content:space-between; align-items:center; margin-top:12px; font-size:13px; color:var(--gray-500); }
+.pagination button { padding:6px 16px; border:1px solid var(--gray-200); border-radius:6px; background:#fff; cursor:pointer; font-size:13px; }
+.pagination button:hover:not(:disabled) { background:var(--gray-100); }
+.pagination button:disabled { opacity:.4; cursor:default; }
+
+/* Tabs */
+.tabs { display:flex; gap:0; }
+.tab-btn { padding:10px 20px; border:none; background:var(--gray-100); font-size:13px; font-weight:600; cursor:pointer; color:var(--gray-500); border-bottom:2px solid transparent; transition:all .2s; }
+.tab-btn:first-child { border-radius:8px 0 0 0; }
+.tab-btn:last-child { border-radius:0 8px 0 0; }
+.tab-btn.active { background:#fff; color:var(--blue); border-bottom-color:var(--blue); }
+
+.chart-container { position:relative; width:100%; }
+
+.footer { text-align:center; padding:32px 24px; color:var(--gray-500); font-size:12px; border-top:1px solid var(--gray-200); margin-top:40px; }
+.footer a { color:var(--blue); text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <h1>Profitability Analysis <span>| By Project</span></h1>
+    <div class="nav-links">
+      <a href="index.html">Dashboard</a>
+      <a href="profitability.html" class="active">Profitability</a>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Filters -->
+  <div class="filters card">
+    <div class="filter-group">
+      <span class="filter-label">Category</span>
+      <select id="filterCategory">
+        <option value="all">All</option>
+        <option value="cluster">Cluster Houses</option>
+        <option value="condo">4-Bed Condos</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Min Holding (Years)</span>
+      <select id="filterHolding">
+        <option value="0">Any</option>
+        <option value="1" selected>1+ year</option>
+        <option value="2">2+ years</option>
+        <option value="3">3+ years</option>
+        <option value="5">5+ years</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Search Project</span>
+      <input type="text" id="filterSearch" placeholder="Project name...">
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="grid-4" id="kpiCards">
+    <div class="card stat-card">
+      <div class="card-title">Total Matched Pairs</div>
+      <div class="stat-value" id="kpiPairs" style="color:var(--blue)">-</div>
+      <div class="stat-sub">buy → sell transactions</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Profitable Trades</div>
+      <div class="stat-value" id="kpiProfitable" style="color:var(--green)">-</div>
+      <div class="stat-sub" id="kpiProfitPct">- of total</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Avg Annualized Return</div>
+      <div class="stat-value" id="kpiAvgReturn" style="color:var(--green)">-</div>
+      <div class="stat-sub">across all matched pairs</div>
+    </div>
+    <div class="card stat-card">
+      <div class="card-title">Median Profit</div>
+      <div class="stat-value" id="kpiMedianProfit">-</div>
+      <div class="stat-sub">per transaction</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="section-title">Returns by Project</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Annualized Return by Project (Top 20)</div>
+      <div class="chart-container" style="height:400px;">
+        <canvas id="chartProjectReturn"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Profit Distribution</div>
+      <div class="chart-container" style="height:400px;">
+        <canvas id="chartProfitDist"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title">Annualized Return: Cluster vs Condo</div>
+      <div class="chart-container" style="height:320px;">
+        <canvas id="chartCategoryReturn"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Holding Period vs Annualized Return</div>
+      <div class="chart-container" style="height:320px;">
+        <canvas id="chartHoldingVsReturn"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Summary Table -->
+  <div class="section-title">Project-Level Profitability</div>
+  <div class="card">
+    <div class="table-wrap">
+      <table id="projectTable">
+        <thead>
+          <tr>
+            <th data-sort="category">Type</th>
+            <th data-sort="project">Project</th>
+            <th data-sort="pairs">Trades</th>
+            <th data-sort="avgBuyPSF">Avg Buy PSF</th>
+            <th data-sort="avgSellPSF">Avg Sell PSF</th>
+            <th data-sort="avgProfitPSF">Profit PSF</th>
+            <th data-sort="avgProfitPct">Profit %</th>
+            <th data-sort="avgAnnualized">Annualized %</th>
+            <th data-sort="avgHolding">Avg Holding</th>
+            <th data-sort="winRate">Win Rate</th>
+          </tr>
+        </thead>
+        <tbody id="projectBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Individual Trades Table -->
+  <div class="section-title">Individual Matched Trades</div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="all">All Trades</button>
+      <button class="tab-btn" data-tab="cluster">Cluster Houses</button>
+      <button class="tab-btn" data-tab="condo">4-Bed Condos</button>
+    </div>
+    <div class="table-wrap">
+      <table id="tradeTable">
+        <thead>
+          <tr>
+            <th data-sort="category">Type</th>
+            <th data-sort="project">Project</th>
+            <th data-sort="area_sqft">Area (sqft)</th>
+            <th data-sort="buyPrice">Buy Price</th>
+            <th data-sort="buyPSF">Buy PSF</th>
+            <th data-sort="buyDate">Buy Date</th>
+            <th data-sort="sellPrice">Sell Price</th>
+            <th data-sort="sellPSF">Sell PSF</th>
+            <th data-sort="sellDate">Sell Date</th>
+            <th data-sort="profitAmt">Profit ($)</th>
+            <th data-sort="profitPSF">Profit PSF</th>
+            <th data-sort="holdingYears">Holding</th>
+            <th data-sort="annualized">Annualized %</th>
+          </tr>
+        </thead>
+        <tbody id="tradeBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="pageInfo">Showing 0 of 0</span>
+      <div>
+        <button id="prevPage" disabled>Previous</button>
+        <button id="nextPage">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:20px; padding:16px 20px; font-size:13px; color:var(--gray-500);">
+    <strong>How trades are matched:</strong> Transactions for the same project, similar floor area (within 5%), and same floor range are paired as buy→sell when a later transaction exists. This is an approximation — the same physical unit cannot be confirmed from URA data alone. Annualized return uses compound annual growth rate (CAGR).
+  </div>
+</div>
+
+<div class="footer">
+  <p>SG Property Compare - Profitability Analysis | Data from <a href="https://eservice.ura.gov.sg/maps/api/reg.html" target="_blank">URA API</a></p>
+  <p style="margin-top:4px;">Disclaimer: For informational purposes only. Not financial advice. Matched trades are approximations.</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA & STATE
+// ═══════════════════════════════════════════════════════════
+let allTrades = [];
+let filteredTrades = [];
+let projectSummaries = [];
+let currentTab = 'all';
+let currentPage = 0;
+const PAGE_SIZE = 30;
+let tradeSortField = 'annualized';
+let tradeSortDir = 'desc';
+let projSortField = 'avgAnnualized';
+let projSortDir = 'desc';
+
+// ═══════════════════════════════════════════════════════════
+// DATE HELPERS
+// ═══════════════════════════════════════════════════════════
+function parseDate(d) {
+  if (!d) return null;
+  if (d.length === 4 && /^\d{4}$/.test(d)) {
+    const mm = parseInt(d.substring(0,2));
+    const yy = parseInt(d.substring(2,4));
+    const year = yy >= 90 ? 1900+yy : 2000+yy;
+    return new Date(year, mm-1, 1);
+  }
+  return new Date(d);
+}
+
+function fmtDate(d) {
+  const dt = parseDate(d);
+  if (!dt || isNaN(dt)) return d || '-';
+  return dt.toLocaleDateString('en-SG',{month:'short',year:'numeric'});
+}
+
+function yearsBetween(d1, d2) {
+  const a = parseDate(d1), b = parseDate(d2);
+  if (!a || !b || isNaN(a) || isNaN(b)) return 0;
+  return (b - a) / (365.25 * 24 * 60 * 60 * 1000);
+}
+
+function fmtPrice(n) {
+  if (Math.abs(n) >= 1e6) return `$${(n/1e6).toFixed(2)}M`;
+  if (Math.abs(n) >= 1e3) return `$${(n/1e3).toFixed(0)}K`;
+  return `$${n.toFixed(0)}`;
+}
+function fmtPSF(n) { return `$${Math.round(n).toLocaleString()}`; }
+function fmtPct(n) { return `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`; }
+function fmtHolding(y) {
+  if (y < 1) return `${Math.round(y*12)}m`;
+  return `${y.toFixed(1)}y`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TRADE MATCHING
+// ═══════════════════════════════════════════════════════════
+function matchTrades(transactions, category) {
+  // Group by project + floor range + approximate area
+  const groups = {};
+  transactions.forEach(t => {
+    const area = Math.round(t.area_sqft / 50) * 50; // Round to nearest 50 sqft
+    const key = `${t.project}|${t.floorRange || 'NA'}|${area}`;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(t);
+  });
+
+  const trades = [];
+  Object.values(groups).forEach(group => {
+    if (group.length < 2) return;
+    // Sort by date
+    group.sort((a, b) => {
+      const da = parseDate(a.contractDate), db = parseDate(b.contractDate);
+      return (da || 0) - (db || 0);
+    });
+    // Pair consecutive transactions as buy→sell
+    for (let i = 0; i < group.length - 1; i++) {
+      const buy = group[i], sell = group[i + 1];
+      const buyDate = parseDate(buy.contractDate);
+      const sellDate = parseDate(sell.contractDate);
+      if (!buyDate || !sellDate || sellDate <= buyDate) continue;
+
+      const holdingYears = yearsBetween(buy.contractDate, sell.contractDate);
+      if (holdingYears < 0.1) continue; // Skip same-month
+
+      const profitAmt = sell.price - buy.price;
+      const profitPSF = sell.psf - buy.psf;
+      const profitPct = buy.price > 0 ? (profitAmt / buy.price) * 100 : 0;
+      const annualized = holdingYears > 0 && buy.price > 0
+        ? (Math.pow(sell.price / buy.price, 1 / holdingYears) - 1) * 100
+        : 0;
+
+      trades.push({
+        category,
+        project: buy.project,
+        street: buy.street,
+        district: buy.district,
+        area_sqft: buy.area_sqft,
+        floorRange: buy.floorRange,
+        buyPrice: buy.price,
+        buyPSF: buy.psf,
+        buyDate: buy.contractDate,
+        sellPrice: sell.price,
+        sellPSF: sell.psf,
+        sellDate: sell.contractDate,
+        profitAmt,
+        profitPSF,
+        profitPct,
+        holdingYears,
+        annualized,
+      });
+    }
+  });
+  return trades;
+}
+
+function buildProjectSummaries(trades) {
+  const groups = {};
+  trades.forEach(t => {
+    if (!groups[t.project]) groups[t.project] = { category: t.category, trades: [] };
+    groups[t.project].trades.push(t);
+  });
+
+  return Object.entries(groups).map(([project, data]) => {
+    const tr = data.trades;
+    const avgBuyPSF = tr.reduce((s,t) => s+t.buyPSF, 0) / tr.length;
+    const avgSellPSF = tr.reduce((s,t) => s+t.sellPSF, 0) / tr.length;
+    const avgProfitPSF = tr.reduce((s,t) => s+t.profitPSF, 0) / tr.length;
+    const avgProfitPct = tr.reduce((s,t) => s+t.profitPct, 0) / tr.length;
+    const avgAnnualized = tr.reduce((s,t) => s+t.annualized, 0) / tr.length;
+    const avgHolding = tr.reduce((s,t) => s+t.holdingYears, 0) / tr.length;
+    const wins = tr.filter(t => t.profitAmt > 0).length;
+
+    return {
+      project, category: data.category, pairs: tr.length,
+      avgBuyPSF, avgSellPSF, avgProfitPSF, avgProfitPct,
+      avgAnnualized, avgHolding, winRate: (wins / tr.length) * 100,
+    };
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD DATA
+// ═══════════════════════════════════════════════════════════
+async function loadData() {
+  let clusterTxns = [], condoTxns = [];
+
+  // Try URA real data first, fall back to sample data
+  const paths = ['data/ura_combined.json', 'data/sample_data.json'];
+  for (const path of paths) {
+    try {
+      const resp = await fetch(path);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.clusterHouses && data.clusterHouses.length > 0) {
+          clusterTxns.push(...data.clusterHouses);
+          if (data.fourBedCondos) condoTxns.push(...data.fourBedCondos);
+          console.log(`Loaded from ${path}: ${data.clusterHouses.length} cluster, ${(data.fourBedCondos||[]).length} condo`);
+          break; // Use first successful source, don't double-load
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Also load separate files
+  for (const file of ['data/portal_cluster_houses.json','data/portal_4bed_condos.json']) {
+    try {
+      const resp = await fetch(file);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.transactions) {
+          if (file.includes('cluster')) clusterTxns.push(...data.transactions);
+          else condoTxns.push(...data.transactions);
+        }
+      }
+    } catch(e) {}
+  }
+
+  // Match trades
+  const clusterTrades = matchTrades(clusterTxns, 'Cluster House');
+  const condoTrades = matchTrades(condoTxns, '4-Bed Condo');
+  allTrades = [...clusterTrades, ...condoTrades];
+
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════════════════
+function applyFilters() {
+  const cat = document.getElementById('filterCategory').value;
+  const minHold = parseFloat(document.getElementById('filterHolding').value);
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+
+  filteredTrades = allTrades.filter(t => {
+    if (cat === 'cluster' && t.category !== 'Cluster House') return false;
+    if (cat === 'condo' && t.category !== '4-Bed Condo') return false;
+    if (t.holdingYears < minHold) return false;
+    if (search && !t.project.toLowerCase().includes(search)) return false;
+    return true;
+  });
+
+  projectSummaries = buildProjectSummaries(filteredTrades);
+  currentPage = 0;
+
+  updateKPIs();
+  updateCharts();
+  updateProjectTable();
+  updateTradeTable();
+}
+
+['filterCategory','filterHolding'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+document.getElementById('filterSearch').addEventListener('input', applyFilters);
+
+// ═══════════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════════
+function median(arr) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b) => a-b);
+  const m = Math.floor(s.length/2);
+  return s.length % 2 ? s[m] : (s[m-1]+s[m])/2;
+}
+
+function updateKPIs() {
+  const t = filteredTrades;
+  document.getElementById('kpiPairs').textContent = t.length.toLocaleString();
+
+  const profitable = t.filter(x => x.profitAmt > 0).length;
+  document.getElementById('kpiProfitable').textContent = profitable.toLocaleString();
+  document.getElementById('kpiProfitPct').textContent = t.length ? `${(profitable/t.length*100).toFixed(1)}% of total` : '-';
+
+  const avgRet = t.length ? t.reduce((s,x) => s+x.annualized, 0) / t.length : 0;
+  const el = document.getElementById('kpiAvgReturn');
+  el.textContent = t.length ? fmtPct(avgRet) : '-';
+  el.style.color = avgRet >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const med = median(t.map(x => x.profitAmt));
+  const medEl = document.getElementById('kpiMedianProfit');
+  medEl.textContent = t.length ? fmtPrice(med) : '-';
+  medEl.style.color = med >= 0 ? 'var(--green)' : 'var(--red)';
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════════
+let charts = {};
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); delete charts[id]; } }
+
+function updateCharts() {
+  updateProjectReturnChart();
+  updateProfitDistChart();
+  updateCategoryReturnChart();
+  updateHoldingVsReturnChart();
+}
+
+function updateProjectReturnChart() {
+  destroyChart('projectReturn');
+  const ctx = document.getElementById('chartProjectReturn').getContext('2d');
+  const sorted = [...projectSummaries].filter(p => p.pairs >= 2).sort((a,b) => b.avgAnnualized - a.avgAnnualized).slice(0, 20);
+
+  charts.projectReturn = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: sorted.map(p => p.project.length > 20 ? p.project.substring(0,20)+'...' : p.project),
+      datasets: [{
+        label: 'Avg Annualized Return %',
+        data: sorted.map(p => p.avgAnnualized),
+        backgroundColor: sorted.map(p => p.avgAnnualized >= 0 ? '#16a34a' : '#dc2626'),
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => fmtPct(ctx.raw) } } },
+      scales: { x: { title: { display: true, text: 'Annualized Return %' }, ticks: { callback: v => v+'%' } } }
+    }
+  });
+}
+
+function updateProfitDistChart() {
+  destroyChart('profitDist');
+  const ctx = document.getElementById('chartProfitDist').getContext('2d');
+  const buckets = ['Loss >$500K','Loss $200-500K','Loss <$200K','Profit <$200K','Profit $200-500K','Profit $500K-1M','Profit >$1M'];
+  const ranges = [[-Infinity,-5e5],[-5e5,-2e5],[-2e5,0],[0,2e5],[2e5,5e5],[5e5,1e6],[1e6,Infinity]];
+
+  const clusterData = ranges.map(([min,max]) => filteredTrades.filter(t => t.category==='Cluster House' && t.profitAmt>=min && t.profitAmt<max).length);
+  const condoData = ranges.map(([min,max]) => filteredTrades.filter(t => t.category==='4-Bed Condo' && t.profitAmt>=min && t.profitAmt<max).length);
+
+  charts.profitDist = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: buckets,
+      datasets: [
+        { label: 'Cluster House', data: clusterData, backgroundColor: '#2563eb', borderRadius: 4 },
+        { label: '4-Bed Condo', data: condoData, backgroundColor: '#ea580c', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } } },
+      scales: { y: { title: { display: true, text: 'Trades' }, beginAtZero: true }, x: { ticks: { maxRotation: 45 } } }
+    }
+  });
+}
+
+function updateCategoryReturnChart() {
+  destroyChart('categoryReturn');
+  const ctx = document.getElementById('chartCategoryReturn').getContext('2d');
+
+  function avgByCategory(cat) {
+    const t = filteredTrades.filter(x => x.category === cat);
+    if (!t.length) return { avgReturn: 0, avgProfit: 0, avgHolding: 0, count: 0 };
+    return {
+      avgReturn: t.reduce((s,x) => s+x.annualized, 0) / t.length,
+      avgProfit: t.reduce((s,x) => s+x.profitPct, 0) / t.length,
+      avgHolding: t.reduce((s,x) => s+x.holdingYears, 0) / t.length,
+      count: t.length,
+    };
+  }
+
+  const cluster = avgByCategory('Cluster House');
+  const condo = avgByCategory('4-Bed Condo');
+
+  charts.categoryReturn = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Annualized Return %', 'Total Profit %', 'Avg Holding (yrs)'],
+      datasets: [
+        { label: `Cluster House (${cluster.count})`, data: [cluster.avgReturn, cluster.avgProfit, cluster.avgHolding], backgroundColor: '#2563eb', borderRadius: 4 },
+        { label: `4-Bed Condo (${condo.count})`, data: [condo.avgReturn, condo.avgProfit, condo.avgHolding], backgroundColor: '#ea580c', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+
+function updateHoldingVsReturnChart() {
+  destroyChart('holdingReturn');
+  const ctx = document.getElementById('chartHoldingVsReturn').getContext('2d');
+
+  charts.holdingReturn = new Chart(ctx, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Cluster House',
+          data: filteredTrades.filter(t => t.category==='Cluster House').map(t => ({x:t.holdingYears, y:t.annualized})),
+          backgroundColor: '#2563eb60', borderColor: '#2563eb', pointRadius: 4,
+        },
+        {
+          label: '4-Bed Condo',
+          data: filteredTrades.filter(t => t.category==='4-Bed Condo').map(t => ({x:t.holdingYears, y:t.annualized})),
+          backgroundColor: '#ea580c60', borderColor: '#ea580c', pointRadius: 4,
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } } },
+      scales: {
+        x: { title: { display: true, text: 'Holding Period (years)' } },
+        y: { title: { display: true, text: 'Annualized Return %' }, ticks: { callback: v => v+'%' } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROJECT TABLE
+// ═══════════════════════════════════════════════════════════
+function updateProjectTable() {
+  const sorted = [...projectSummaries].sort((a,b) => {
+    let va = a[projSortField], vb = b[projSortField];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    return projSortDir === 'desc' ? (vb > va ? 1 : -1) : (va > vb ? 1 : -1);
+  });
+
+  document.getElementById('projectBody').innerHTML = sorted.map(p => `
+    <tr>
+      <td><span class="badge ${p.category==='Cluster House' ? 'badge-cluster' : 'badge-condo'}">${p.category==='Cluster House' ? 'Cluster' : '4-Bed'}</span></td>
+      <td><strong>${p.project}</strong></td>
+      <td>${p.pairs}</td>
+      <td>${fmtPSF(p.avgBuyPSF)}</td>
+      <td>${fmtPSF(p.avgSellPSF)}</td>
+      <td class="${p.avgProfitPSF>=0?'profit-pos':'profit-neg'}">${fmtPSF(p.avgProfitPSF)}</td>
+      <td class="${p.avgProfitPct>=0?'profit-pos':'profit-neg'}">${fmtPct(p.avgProfitPct)}</td>
+      <td class="${p.avgAnnualized>=0?'profit-pos':'profit-neg'}">${fmtPct(p.avgAnnualized)}</td>
+      <td>${fmtHolding(p.avgHolding)}</td>
+      <td>${p.winRate.toFixed(0)}%</td>
+    </tr>
+  `).join('');
+
+  // Sort headers
+  document.querySelectorAll('#projectTable thead th').forEach(th => {
+    th.classList.remove('sorted-asc','sorted-desc');
+    if (th.dataset.sort === projSortField) th.classList.add(projSortDir==='asc'?'sorted-asc':'sorted-desc');
+  });
+}
+
+document.querySelectorAll('#projectTable thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const f = th.dataset.sort;
+    if (projSortField === f) projSortDir = projSortDir === 'asc' ? 'desc' : 'asc';
+    else { projSortField = f; projSortDir = 'desc'; }
+    updateProjectTable();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// TRADE TABLE
+// ═══════════════════════════════════════════════════════════
+function getTradeData() {
+  let data = filteredTrades;
+  if (currentTab === 'cluster') data = data.filter(t => t.category === 'Cluster House');
+  if (currentTab === 'condo') data = data.filter(t => t.category === '4-Bed Condo');
+
+  data = [...data].sort((a,b) => {
+    let va = a[tradeSortField], vb = b[tradeSortField];
+    if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+    if (tradeSortField.includes('Date')) { va = parseDate(va)||new Date(0); vb = parseDate(vb)||new Date(0); }
+    return tradeSortDir === 'desc' ? (vb > va ? 1 : -1) : (va > vb ? 1 : -1);
+  });
+  return data;
+}
+
+function updateTradeTable() {
+  const data = getTradeData();
+  const start = currentPage * PAGE_SIZE;
+  const page = data.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('tradeBody').innerHTML = page.map(t => `
+    <tr>
+      <td><span class="badge ${t.category==='Cluster House'?'badge-cluster':'badge-condo'}">${t.category==='Cluster House'?'Cluster':'4-Bed'}</span></td>
+      <td><strong>${t.project}</strong></td>
+      <td>${Math.round(t.area_sqft).toLocaleString()}</td>
+      <td>${fmtPrice(t.buyPrice)}</td>
+      <td>${fmtPSF(t.buyPSF)}</td>
+      <td>${fmtDate(t.buyDate)}</td>
+      <td>${fmtPrice(t.sellPrice)}</td>
+      <td>${fmtPSF(t.sellPSF)}</td>
+      <td>${fmtDate(t.sellDate)}</td>
+      <td class="${t.profitAmt>=0?'profit-pos':'profit-neg'}">${fmtPrice(t.profitAmt)}</td>
+      <td class="${t.profitPSF>=0?'profit-pos':'profit-neg'}">${fmtPSF(t.profitPSF)}</td>
+      <td>${fmtHolding(t.holdingYears)}</td>
+      <td class="${t.annualized>=0?'profit-pos':'profit-neg'}">${fmtPct(t.annualized)}</td>
+    </tr>
+  `).join('');
+
+  const totalPages = Math.ceil(data.length / PAGE_SIZE);
+  document.getElementById('pageInfo').textContent = data.length ? `Showing ${start+1}-${Math.min(start+PAGE_SIZE, data.length)} of ${data.length}` : 'No trades found';
+  document.getElementById('prevPage').disabled = currentPage === 0;
+  document.getElementById('nextPage').disabled = currentPage >= totalPages - 1;
+
+  document.querySelectorAll('#tradeTable thead th').forEach(th => {
+    th.classList.remove('sorted-asc','sorted-desc');
+    if (th.dataset.sort === tradeSortField) th.classList.add(tradeSortDir==='asc'?'sorted-asc':'sorted-desc');
+  });
+}
+
+// Tab switching
+document.querySelectorAll('.tabs .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabs .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentTab = btn.dataset.tab;
+    currentPage = 0;
+    updateTradeTable();
+  });
+});
+
+// Trade table sorting
+document.querySelectorAll('#tradeTable thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const f = th.dataset.sort;
+    if (tradeSortField === f) tradeSortDir = tradeSortDir === 'asc' ? 'desc' : 'asc';
+    else { tradeSortField = f; tradeSortDir = 'desc'; }
+    updateTradeTable();
+  });
+});
+
+// Pagination
+document.getElementById('prevPage').addEventListener('click', () => { currentPage--; updateTradeTable(); });
+document.getElementById('nextPage').addEventListener('click', () => { currentPage++; updateTradeTable(); });
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+loadData();
+</script>
+</body>
+</html>

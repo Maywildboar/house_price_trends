@@ -284,7 +284,13 @@ tbody tr:hover { background: var(--gray-50); }
 
 <div class="header">
   <div class="header-inner">
-    <h1>SG Property Compare <span>| Cluster Houses vs 4-Bed Condos</span></h1>
+    <div>
+      <h1>SG Property Compare <span>| Cluster Houses vs 4-Bed Condos</span></h1>
+      <div style="display:flex; gap:16px; margin-top:8px;">
+        <a href="index.html" style="color:#fff; text-decoration:none; font-size:14px; font-weight:500; padding:6px 12px; border-radius:6px; background:rgba(255,255,255,.15);">Dashboard</a>
+        <a href="profitability.html" style="color:#93c5fd; text-decoration:none; font-size:14px; font-weight:500; padding:6px 12px; border-radius:6px;">Profitability</a>
+      </div>
+    </div>
     <div class="header-meta">
       <div id="lastUpdated">Loading...</div>
       <div id="dataSource">Sources: URA, EdgeProp, 99.co</div>
@@ -552,21 +558,25 @@ let sortDir = 'desc';
 
 async function loadData() {
   try {
-    // Try loading from data directory (for GitHub Pages)
-    const paths = [
-      'data/sample_data.json',
+    // Try loading URA real data first, fall back to sample data
+    const primaryPaths = [
       'data/ura_combined.json',
+      'data/sample_data.json',
     ];
 
     let loaded = false;
-    for (const path of paths) {
+    for (const path of primaryPaths) {
       try {
         const resp = await fetch(path);
         if (resp.ok) {
           const data = await resp.json();
-          if (data.clusterHouses) allData.clusterHouses.push(...data.clusterHouses);
-          if (data.fourBedCondos) allData.fourBedCondos.push(...data.fourBedCondos);
-          loaded = true;
+          if (data.clusterHouses && data.clusterHouses.length > 0) {
+            allData.clusterHouses.push(...data.clusterHouses);
+            if (data.fourBedCondos) allData.fourBedCondos.push(...data.fourBedCondos);
+            loaded = true;
+            console.log(`Loaded data from ${path}: ${data.clusterHouses.length} cluster, ${(data.fourBedCondos||[]).length} condo`);
+            break; // Use first successful source, don't double-load
+          }
         }
       } catch (e) { /* try next */ }
     }

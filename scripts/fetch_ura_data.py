@@ -56,15 +56,18 @@ CLUSTER_HOUSE_PROJECTS = [
     "MIMOSA PARK",
     "CABANA",
     "SUNRISE TERRACE",
+    "MIMOSA TERRACE",
     # Yishun / Sembawang (D26-27)
     "THE SPRINGSIDE",
     "WATERCOVE",
+    "SPRINGHILL",
+    "SPRING HILL",
     # Serangoon / Hougang (D19)
     "VERDANA VILLAS",
     "TERRA VILLAS",
     # East (D17)
     "ARCHIPELAGO",
-    # Central (D09-11)
+    # Central / Others (D09-11)
     "THE WHITLEY RESIDENCES",
     "THE TENERIFFE",
     "HILLCREST VILLA",
@@ -72,6 +75,14 @@ CLUSTER_HOUSE_PROJECTS = [
     "THE CALROSE",
     "ENG KONG PARK",
     "TOMLINSON HEIGHTS",
+    # Additional cluster houses
+    "THE SHAUGHNESSY",
+    "SHAUGHNESSY",
+    "LEGEND AT JANSEN",
+    "LEGEND @ JANSEN",
+    "THE LEGEND",
+    "PALACIO",
+    "THE PALACIO",
 ]
 
 # Condo/Apartment types
@@ -299,6 +310,19 @@ def main():
             "fourBedCondos": condo_4bed_txns,
         }, f, indent=2)
     print(f"✓ Saved combined dataset → {combined_path}")
+
+    # Save ALL project names for searching/debugging
+    all_project_names = set()
+    for project in all_projects:
+        all_project_names.add(project.get("project", ""))
+    all_projects_path = os.path.join(OUTPUT_DIR, "all_project_names.txt")
+    with open(all_projects_path, "w") as f:
+        for name in sorted(all_project_names):
+            if name.strip():
+                f.write(name + "\n")
+    print(f"✓ Saved {len(all_project_names)} project names → {all_projects_path}")
+    print(f"\n  To search for missing projects:")
+    print(f"  findstr /i \"KEYWORD\" data\\all_project_names.txt")
 
 
 if __name__ == "__main__":
