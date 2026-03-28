@@ -6,13 +6,13 @@ Data source: Urban Redevelopment Authority (URA) Singapore
 API docs: https://eservice.ura.gov.sg/maps/api/
 
 SETUP:
-1. Register at https://www.ura.gov.sg/maps/api/ for a free access key
+1. Register at https://eservice.ura.gov.sg/maps/api/reg.html for a free access key
 2. Set your access key below or as environment variable URA_ACCESS_KEY
 3. Run: python fetch_ura_data.py
 
 The script fetches the last 5 years of transactions and filters for:
-- Cluster houses (strata landed: strata terrace, strata semi-detached, strata bungalow)
-- 4-bedroom condominium/apartment units
+- Cluster houses (identified by known project names)
+- 4-bedroom condominium/apartment units (identified by floor area 120-175 sqm)
 """
 
 import json
@@ -32,50 +32,94 @@ OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "dat
 # URA returns data in batches (1-4)
 BATCHES = [1, 2, 3, 4]
 
-# Property types to filter
-CLUSTER_TYPES = [
-    "Strata Terrace House",
-    "Strata Semi-detached House",
-    "Strata Detached House",
-    "Cluster House",
+# ─── Known cluster house (strata landed) projects in Singapore ───
+# URA classifies these as "Condominium" or "Apartment" but they are
+# actually strata-titled landed homes with shared facilities.
+# This list uses EXACT project names as they appear in URA data.
+CLUSTER_HOUSE_PROJECTS = [
+    # Belgravia Collection (D28 - Ang Mo Kio / Seletar)
+    "BELGRAVIA VILLAS",
+    "BELGRAVIA GREEN",
+    "BELGRAVIA ACE",
+    # Luxus Hills (D28 - Seletar)
+    "LUXUS HILLS",
+    # Pollen & Nim (D28)
+    "POLLEN COLLECTION",
+    "POLLEN COLLECTION II",
+    "NIM COLLECTION",
+    # Seletar / Ang Mo Kio area (D28)
+    "SELETAR HILLS ESTATE",
+    "PAVILION PARK",
+    "PARRY GREEN",
+    "KEW GREEN",
+    "CASHEW GREEN",
+    # Yishun / Sembawang (D26-27)
+    "THE SPRINGSIDE",
+    "WATERCOVE",
+    # Serangoon / Hougang (D19)
+    "VERDANA VILLAS",
+    "TERRA VILLAS",
+    # East (D17)
+    "ARCHIPELAGO",
+    # Central (D09-11)
+    "THE WHITLEY RESIDENCES",
+    "THE TENERIFFE",
+    "HILLCREST VILLA",
+    "GREENWOOD MEWS",
+    "THE CALROSE",
+    "ENG KONG PARK",
+    "TOMLINSON HEIGHTS",
 ]
 
-CONDO_TYPES = [
-    "Condominium",
-    "Apartment",
-    "Executive Condominium",
-]
+# Condo/Apartment types
+CONDO_TYPES = ["Condominium", "Apartment", "Executive Condominium"]
 
-# Approximate 4-bedroom size range in sqm (100-200 sqm / ~1076-2153 sqft)
-FOUR_BED_MIN_SQM = 100
-FOUR_BED_MAX_SQM = 220
+# 4-bedroom condo: 4 bedrooms typically above 1000 sqft (93 sqm)
+# Upper limit set at 200 sqm (~2153 sqft) to exclude penthouses
+FOUR_BED_MIN_SQM = 93    # 1000 sqft
+FOUR_BED_MAX_SQM = 200   # ~2153 sqft
 
 
 def get_token(access_key):
     """Generate a daily token using the URA access key."""
-    req = Request(TOKEN_URL, headers={"AccessKey": access_key})
+    req = Request(TOKEN_URL, headers={"AccessKey": access_key, "User-Agent": "Mozilla/5.0"})
     try:
         with urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
+            raw = resp.read().decode("utf-8", errors="replace")
+            print(f"  Token response status: {resp.status}")
+            if not raw.strip():
+                print("Error: Empty response from token endpoint.")
+                print("  This may mean your access key hasn't been activated yet.")
+                print("  Check your email for an activation link from URA.")
+                sys.exit(1)
+            data = json.loads(raw)
             token = data.get("Result", "")
             if not token:
                 print(f"Error: No token returned. Response: {data}")
                 sys.exit(1)
-            print(f"✓ Token generated successfully")
+            print("✓ Token generated successfully")
             return token
     except HTTPError as e:
         print(f"Error getting token: {e.code} {e.reason}")
+        if e.code == 401:
+            print("  Your access key may be invalid or expired.")
         sys.exit(1)
 
 
 def fetch_transactions(access_key, token, batch):
     """Fetch one batch of transaction data from URA API."""
     url = TRANSACTION_URL.format(batch=batch)
-    req = Request(url, headers={"AccessKey": access_key, "Token": token})
+    req = Request(url, headers={"AccessKey": access_key, "Token": token, "User-Agent": "Mozilla/5.0"})
     try:
-        with urlopen(req, timeout=60) as resp:
-            data = json.loads(resp.read().decode())
+        with urlopen(req, timeout=120) as resp:
+            raw = resp.read().decode("utf-8", errors="replace")
+            if not raw.strip():
+                print(f"  Batch {batch}: Empty response (may need retry)")
+                return []
+            data = json.loads(raw)
             results = data.get("Result", [])
+            if results is None:
+                results = []
             print(f"  Batch {batch}: {len(results)} project groups")
             return results
     except HTTPError as e:
@@ -84,29 +128,32 @@ def fetch_transactions(access_key, token, batch):
     except URLError as e:
         print(f"  Batch {batch}: Network error - {e.reason}")
         return []
+    except json.JSONDecodeError as e:
+        print(f"  Batch {batch}: Invalid JSON response - {e}")
+        return []
 
 
-def is_cluster_house(property_type, project_name=""):
-    """Check if the property type is a cluster/strata landed house."""
-    pt = (property_type or "").lower()
-    pn = (project_name or "").lower()
-    for ct in CLUSTER_TYPES:
-        if ct.lower() in pt:
-            return True
-    # Some cluster houses are listed under generic types but have keywords
-    cluster_keywords = ["cluster", "strata landed", "townhouse"]
-    for kw in cluster_keywords:
-        if kw in pt or kw in pn:
+def is_cluster_house(project_name):
+    """Check if the project is a known cluster house development."""
+    pn = (project_name or "").upper().strip()
+    for cluster_proj in CLUSTER_HOUSE_PROJECTS:
+        # Exact match only to avoid false positives
+        if pn == cluster_proj:
             return True
     return False
 
 
-def is_4bed_condo(property_type, area_sqm):
-    """Check if the transaction is likely a 4-bedroom condo."""
+def is_4bed_condo(property_type, area_sqm, project_name):
+    """Check if the transaction is likely a 4-bedroom condo (not a cluster house)."""
+    # Must be condo/apartment type
     pt = (property_type or "").lower()
     is_condo = any(ct.lower() in pt for ct in CONDO_TYPES)
     if not is_condo:
         return False
+    # Must NOT be a cluster house project
+    if is_cluster_house(project_name):
+        return False
+    # Must be in 4-bedroom size range
     try:
         area = float(area_sqm)
         return FOUR_BED_MIN_SQM <= area <= FOUR_BED_MAX_SQM
@@ -157,7 +204,7 @@ def main():
 
     if URA_ACCESS_KEY == "YOUR_ACCESS_KEY_HERE":
         print("\n⚠ No URA access key configured!")
-        print("Register at https://www.ura.gov.sg/maps/api/ to get one.")
+        print("Register at https://eservice.ura.gov.sg/maps/api/reg.html to get one.")
         print("Then set URA_ACCESS_KEY environment variable or edit this script.")
         sys.exit(1)
 
@@ -181,23 +228,31 @@ def main():
     cluster_txns = []
     condo_4bed_txns = []
     total_txns = 0
+    cluster_projects_found = set()
 
     for project in all_projects:
+        project_name = project.get("project", "")
         transactions = project.get("transaction", [])
+
         for txn in transactions:
             total_txns += 1
             prop_type = txn.get("propertyType", project.get("propertyType", ""))
             area = txn.get("area", 0)
 
-            if is_cluster_house(prop_type, project.get("project", "")):
+            if is_cluster_house(project_name):
                 record = parse_transaction(project, txn, "Cluster House")
                 cluster_txns.append(record)
-            elif is_4bed_condo(prop_type, area):
+                cluster_projects_found.add(project_name)
+            elif is_4bed_condo(prop_type, area, project_name):
                 record = parse_transaction(project, txn, "4-Bed Condo")
                 condo_4bed_txns.append(record)
 
     print(f"  Total transactions scanned: {total_txns}")
     print(f"  Cluster house transactions: {len(cluster_txns)}")
+    print(f"  Cluster projects found: {len(cluster_projects_found)}")
+    for p in sorted(cluster_projects_found):
+        count = sum(1 for t in cluster_txns if t["project"] == p)
+        print(f"    - {p}: {count} txns")
     print(f"  4-bedroom condo transactions: {len(condo_4bed_txns)}")
 
     # Save outputs
@@ -219,7 +274,7 @@ def main():
         json.dump({
             "source": "URA API",
             "fetchedAt": datetime.now().isoformat(),
-            "description": "4-bedroom condo/apartment transactions from URA",
+            "description": "4-bedroom condo/apartment transactions from URA (120-175 sqm)",
             "count": len(condo_4bed_txns),
             "transactions": condo_4bed_txns,
         }, f, indent=2)
