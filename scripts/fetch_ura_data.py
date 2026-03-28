@@ -53,6 +53,9 @@ CLUSTER_HOUSE_PROJECTS = [
     "PARRY GREEN",
     "KEW GREEN",
     "CASHEW GREEN",
+    "MIMOSA PARK",
+    "CABANA",
+    "SUNRISE TERRACE",
     # Yishun / Sembawang (D26-27)
     "THE SPRINGSIDE",
     "WATERCOVE",
@@ -207,6 +210,12 @@ def main():
         print("Register at https://eservice.ura.gov.sg/maps/api/reg.html to get one.")
         print("Then set URA_ACCESS_KEY environment variable or edit this script.")
         sys.exit(1)
+
+    # Show current cluster house project list
+    print(f"\nCluster house project list ({len(CLUSTER_HOUSE_PROJECTS)} projects):")
+    for i, p in enumerate(CLUSTER_HOUSE_PROJECTS, 1):
+        print(f"  {i:2d}. {p}")
+    print(f"\nTo add/remove projects, edit CLUSTER_HOUSE_PROJECTS in this script.")
 
     # Step 1: Get token
     print("\n[1/3] Generating API token...")
