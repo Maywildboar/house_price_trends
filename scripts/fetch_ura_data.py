@@ -24,7 +24,7 @@ from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 # ─── Configuration ───────────────────────────────────────────────
-URA_ACCESS_KEY = os.environ.get("URA_ACCESS_KEY", "YOUR_ACCESS_KEY_HERE")
+URA_ACCESS_KEY = os.environ.get("URA_ACCESS_KEY", "4521d34d-996d-41fc-ad93-fe58e34ab98f")
 TOKEN_URL = "https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1"
 TRANSACTION_URL = "https://eservice.ura.gov.sg/uraDataService/invokeUraDS/v1?service=PMI_Resi_Transaction&batch={batch}"
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data")

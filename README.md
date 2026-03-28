@@ -32,7 +32,7 @@ Then go to **Settings → Pages → Source: Deploy from branch → main → / (r
 
 #### Option A: URA API (official government data)
 
-1. Register for a free API key at https://www.ura.gov.sg/maps/api/
+1. Register for a free API key at https://eservice.ura.gov.sg/maps/api/reg.html
 2. Run the fetcher script:
 
 ```bash
